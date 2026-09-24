@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="welltech_bg">#08100D</color>
+    <color name="welltech_panel">#101A16</color>
+    <color name="welltech_panel_2">#14231C</color>
+    <color name="welltech_green">#78F04C</color>
+    <color name="welltech_text">#F4F7F5</color>
+    <color name="welltech_muted">#98A69F</color>
+</resources>
