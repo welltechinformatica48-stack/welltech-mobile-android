@@ -46,8 +46,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        buildUi();
-        showOverview();
+        try {
+            buildUi();
+            showOverview();
+        } catch (Throwable startupError) {
+            showStartupRecovery(startupError);
+        }
     }
 
     @Override
@@ -161,6 +165,37 @@ public class MainActivity extends Activity {
 
         setContentView(root);
         updateAgentUi();
+    }
+
+    private void showStartupRecovery(Throwable error) {
+        try {
+            LinearLayout root = new LinearLayout(this);
+            root.setOrientation(LinearLayout.VERTICAL);
+            root.setPadding(dp(18), dp(24), dp(18), dp(24));
+            root.setBackgroundColor(BG);
+
+            TextView title = new TextView(this);
+            title.setText("WELLTECH MOBILE AGENT");
+            title.setTextColor(GREEN);
+            title.setTextSize(22);
+            title.setTypeface(null, 1);
+            root.addView(title);
+
+            TextView message = new TextView(this);
+            message.setText("O aplicativo abriu em modo de recuperação. Uma leitura do Android não respondeu como esperado, mas o app não será encerrado.\n\nDetalhe técnico: " +
+                    (error == null ? "indisponível" : error.getClass().getSimpleName()));
+            message.setTextColor(TEXT);
+            message.setTextSize(15);
+            message.setPadding(0, dp(18), 0, dp(18));
+            root.addView(message);
+
+            Button retry = action("TENTAR ABRIR DIAGNÓSTICO");
+            retry.setOnClickListener(v -> recreate());
+            root.addView(retry);
+            setContentView(root);
+        } catch (Throwable ignored) {
+            // Last-resort: Android keeps the Activity alive instead of crashing repeatedly.
+        }
     }
 
     private void requestPairing() {
