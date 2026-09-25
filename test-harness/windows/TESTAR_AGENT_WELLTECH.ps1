@@ -133,8 +133,8 @@ if (-not $packageName) {
 
 Write-Host "Pacote encontrado: $packageName" -ForegroundColor Green
 
-Write-Step "Abrindo o Agent no celular"
-& $adb -s $serial shell monkey -p $packageName -c android.intent.category.LAUNCHER 1 2>$null | Out-Null
+Write-Step "Abrindo e preparando o Agent no celular"
+& $adb -s $serial shell am start -W -a com.welltech.mobile.action.DESKTOP_PREPARE -n "$packageName/com.welltech.mobile.MainActivity" --es welltech_desktop_source desktop --ez welltech_prepare_agent true 2>$null | Out-Null
 Start-Sleep -Seconds 2
 
 try { & $adb -s $serial forward --remove "tcp:$Port" 2>$null | Out-Null } catch {}

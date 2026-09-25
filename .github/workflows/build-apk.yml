@@ -32,11 +32,11 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p output
-          cp app/build/outputs/apk/debug/app-debug.apk output/Welltech-Mobile-Agent-0.2.0.3-icon.apk
+          cp app/build/outputs/apk/debug/app-debug.apk output/Welltech-Mobile-Agent-0.2.1-usb-ready.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Welltech-Mobile-Agent-0.2.0.3-icon
-          path: output/Welltech-Mobile-Agent-0.2.0.3-icon.apk
+          name: Welltech-Mobile-Agent-0.2.1-usb-ready
+          path: output/Welltech-Mobile-Agent-0.2.1-usb-ready.apk
           if-no-files-found: error

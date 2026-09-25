@@ -18,6 +18,10 @@ import android.widget.Toast;
 import java.util.List;
 
 public class MainActivity extends Activity {
+    public static final String ACTION_DESKTOP_PREPARE = "com.welltech.mobile.action.DESKTOP_PREPARE";
+    public static final String EXTRA_DESKTOP_SOURCE = "welltech_desktop_source";
+    public static final String EXTRA_PREPARE_AGENT = "welltech_prepare_agent";
+
     private static final int BG = Color.rgb(8,16,13);
     private static final int PANEL = Color.rgb(16,26,22);
     private static final int PANEL2 = Color.rgb(20,35,28);
@@ -33,6 +37,8 @@ public class MainActivity extends Activity {
     private TextView pairingCode;
     private Button pairButton;
     private Button stopButton;
+    private TextView desktopRequestState;
+    private boolean desktopRequested;
     private boolean pairingPendingAfterNotificationPermission;
     private final Handler statusHandler = new Handler(Looper.getMainLooper());
 
@@ -49,9 +55,17 @@ public class MainActivity extends Activity {
         try {
             buildUi();
             showOverview();
+            handleLaunchIntent(getIntent());
         } catch (Throwable startupError) {
             showStartupRecovery(startupError);
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleLaunchIntent(intent);
     }
 
     @Override
@@ -123,6 +137,13 @@ public class MainActivity extends Activity {
         agentActions.addView(stopButton, stopLp);
 
         agentPanel.addView(agentActions);
+
+        desktopRequestState = new TextView(this);
+        desktopRequestState.setTextColor(MUTED);
+        desktopRequestState.setTextSize(12);
+        desktopRequestState.setPadding(0, dp(8), 0, 0);
+        desktopRequestState.setText("Desktop: nenhuma solicitação USB/ADB recebida");
+        agentPanel.addView(desktopRequestState);
 
         TextView localOnly = new TextView(this);
         localOnly.setText("Conexão local: 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • dados enviados somente ao computador pareado via sessão local");
@@ -198,6 +219,35 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void handleLaunchIntent(Intent intent) {
+        if (intent == null) return;
+
+        boolean requestedByDesktop =
+                ACTION_DESKTOP_PREPARE.equals(intent.getAction()) ||
+                intent.getBooleanExtra(EXTRA_PREPARE_AGENT, false) ||
+                "desktop".equalsIgnoreCase(intent.getStringExtra(EXTRA_DESKTOP_SOURCE));
+
+        if (!requestedByDesktop) return;
+
+        desktopRequested = true;
+        try {
+            AgentService.start(this);
+            if (desktopRequestState != null) {
+                desktopRequestState.setText("Desktop: solicitação USB/ADB recebida • Agent preparado");
+                desktopRequestState.setTextColor(GREEN);
+            }
+            updateAgentUi();
+            Toast.makeText(this,
+                    "Welltech Desktop detectado. Toque em ABRIR PAREAMENTO para autorizar.",
+                    Toast.LENGTH_LONG).show();
+        } catch (Throwable error) {
+            if (desktopRequestState != null) {
+                desktopRequestState.setText("Desktop: solicitação recebida • falha ao preparar Agent");
+                desktopRequestState.setTextColor(WARN);
+            }
+        }
+    }
+
     private void requestPairing() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             pairingPendingAfterNotificationPermission = true;
@@ -253,7 +303,11 @@ public class MainActivity extends Activity {
                 stopButton.setEnabled(true);
                 break;
             default:
-                agentState.setText("○ DESCONECTADO • agente aguardando autorização");
+                if (desktopRequested) {
+                    agentState.setText("○ DESKTOP DETECTADO • aguardando autorização");
+                } else {
+                    agentState.setText("○ DESCONECTADO • agente aguardando autorização");
+                }
                 agentState.setTextColor(MUTED);
                 pairingCode.setText("Nenhuma sessão ativa");
                 pairButton.setText("ABRIR PAREAMENTO");
@@ -281,7 +335,7 @@ public class MainActivity extends Activity {
     }
 
     private void showOverview() {
-        clear("Visão geral", "Alpha 0.2.0 • leitura local + Agent Protocolo 1.0");
+        clear("Visão geral", "Alpha 0.2.1 • leitura local + Agent Protocolo 1.0");
 
         card("DISPOSITIVO", snapshot.manufacturer + " " + snapshot.model +
                 "\nAndroid " + snapshot.androidVersion + " • API " + snapshot.sdk +
@@ -403,7 +457,7 @@ public class MainActivity extends Activity {
         long used = Math.max(0, snapshot.storageTotal - snapshot.storageFree);
         int storagePct = snapshot.storageTotal > 0 ? (int)Math.round(used * 100d / snapshot.storageTotal) : 0;
 
-        return "WELLTECH MOBILE AGENT - ALPHA 0.2.0\n\n" +
+        return "WELLTECH MOBILE AGENT - ALPHA 0.2.1\n\n" +
                 "Dispositivo: " + snapshot.manufacturer + " " + snapshot.model + "\n" +
                 "Android: " + snapshot.androidVersion + " (API " + snapshot.sdk + ")\n" +
                 "Patch: " + snapshot.securityPatch + "\n" +
