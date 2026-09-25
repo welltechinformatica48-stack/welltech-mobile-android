@@ -2,7 +2,7 @@ package com.welltech.mobile;
 
 public final class AgentConstants {
     public static final String SERVICE_NAME = "welltech-mobile-agent";
-    public static final String AGENT_VERSION = "0.2.0-alpha.1";
+    public static final String AGENT_VERSION = "0.2.0.3-alpha";
     public static final int PROTOCOL_MAJOR = 1;
     public static final int PROTOCOL_MINOR = 0;
     public static final String PROTOCOL = "1.0";

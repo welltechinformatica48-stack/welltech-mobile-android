@@ -6,4 +6,7 @@
     <color name="welltech_green">#78F04C</color>
     <color name="welltech_text">#F4F7F5</color>
     <color name="welltech_muted">#98A69F</color>
+    <color name="welltech_icon_bg">#050908</color>
+    <color name="welltech_icon_green">#59FF43</color>
+    <color name="welltech_icon_green_dark">#009B4A</color>
 </resources>

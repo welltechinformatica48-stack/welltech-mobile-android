@@ -56,14 +56,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p output
-          cp app/build/outputs/apk/release/app-release.apk output/Welltech-Mobile-Agent-0.2.0.2-signed.apk
-          sha256sum output/Welltech-Mobile-Agent-0.2.0.2-signed.apk > output/SHA256SUMS.txt
+          cp app/build/outputs/apk/release/app-release.apk output/Welltech-Mobile-Agent-0.2.0.3-signed.apk
+          sha256sum output/Welltech-Mobile-Agent-0.2.0.3-signed.apk > output/SHA256SUMS.txt
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: Welltech-Mobile-Agent-0.2.0.2-signed
+          name: Welltech-Mobile-Agent-0.2.0.3-signed
           path: |
-            output/Welltech-Mobile-Agent-0.2.0.2-signed.apk
+            output/Welltech-Mobile-Agent-0.2.0.3-signed.apk
             output/SHA256SUMS.txt
           if-no-files-found: error
