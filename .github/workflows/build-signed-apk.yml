@@ -1,0 +1,69 @@
+name: Build Signed Welltech Mobile Agent
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Prepare private signing key
+        shell: bash
+        env:
+          WELLTECH_KEYSTORE_BASE64: ${{ secrets.WELLTECH_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$WELLTECH_KEYSTORE_BASE64" ]; then
+            echo "WELLTECH_KEYSTORE_BASE64 is not configured."
+            exit 1
+          fi
+          echo "$WELLTECH_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/welltech-release.keystore"
+          chmod 600 "$RUNNER_TEMP/welltech-release.keystore"
+
+      - name: Build signed release APK
+        env:
+          WELLTECH_KEYSTORE_PATH: ${{ runner.temp }}/welltech-release.keystore
+          WELLTECH_KEYSTORE_PASSWORD: ${{ secrets.WELLTECH_KEYSTORE_PASSWORD }}
+          WELLTECH_KEY_ALIAS: ${{ secrets.WELLTECH_KEY_ALIAS }}
+          WELLTECH_KEY_PASSWORD: ${{ secrets.WELLTECH_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+
+      - name: Package signed APK
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          cp app/build/outputs/apk/release/app-release.apk output/Welltech-Mobile-Agent-0.2.0.2-signed.apk
+          sha256sum output/Welltech-Mobile-Agent-0.2.0.2-signed.apk > output/SHA256SUMS.txt
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Welltech-Mobile-Agent-0.2.0.2-signed
+          path: |
+            output/Welltech-Mobile-Agent-0.2.0.2-signed.apk
+            output/SHA256SUMS.txt
+          if-no-files-found: error

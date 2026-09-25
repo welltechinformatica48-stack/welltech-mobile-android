@@ -1,0 +1,17 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Welltech signing - NEVER COMMIT PRIVATE KEYS
+*.keystore
+*.jks
+*.p12
+signing.properties
+.env.signing
+credentials.txt
