@@ -1,13 +1,19 @@
 package com.welltech.mobile;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -18,9 +24,24 @@ public class MainActivity extends Activity {
     private static final int GREEN = Color.rgb(120,240,76);
     private static final int TEXT = Color.rgb(244,247,245);
     private static final int MUTED = Color.rgb(152,166,159);
+    private static final int WARN = Color.rgb(255,200,87);
+    private static final int REQUEST_NOTIFICATIONS = 7001;
 
     private LinearLayout content;
     private DeviceDiagnostics.Snapshot snapshot;
+    private TextView agentState;
+    private TextView pairingCode;
+    private Button pairButton;
+    private Button stopButton;
+    private boolean pairingPendingAfterNotificationPermission;
+    private final Handler statusHandler = new Handler(Looper.getMainLooper());
+
+    private final Runnable statusTick = new Runnable() {
+        @Override public void run() {
+            updateAgentUi();
+            statusHandler.postDelayed(this, 500L);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +54,14 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         snapshot = DeviceDiagnostics.collect(this);
+        statusHandler.removeCallbacks(statusTick);
+        statusHandler.post(statusTick);
+    }
+
+    @Override
+    protected void onPause() {
+        statusHandler.removeCallbacks(statusTick);
+        super.onPause();
     }
 
     private void buildUi() {
@@ -41,7 +70,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
 
         TextView brand = new TextView(this);
-        brand.setText("WELLTECH  MOBILE");
+        brand.setText("WELLTECH  MOBILE AGENT");
         brand.setTextColor(GREEN);
         brand.setTextSize(22);
         brand.setTypeface(null, 1);
@@ -49,11 +78,60 @@ public class MainActivity extends Activity {
         root.addView(brand);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Diagnóstico técnico no próprio aparelho");
+        subtitle.setText("Diagnóstico local + integração autorizada com o Mobile Center");
         subtitle.setTextColor(MUTED);
         subtitle.setTextSize(13);
-        subtitle.setPadding(dp(18), 0, dp(18), dp(14));
+        subtitle.setPadding(dp(18), 0, dp(18), dp(12));
         root.addView(subtitle);
+
+        LinearLayout agentPanel = new LinearLayout(this);
+        agentPanel.setOrientation(LinearLayout.VERTICAL);
+        agentPanel.setPadding(dp(14), dp(12), dp(14), dp(12));
+        agentPanel.setBackgroundColor(PANEL);
+
+        agentState = new TextView(this);
+        agentState.setTextColor(TEXT);
+        agentState.setTextSize(14);
+        agentState.setTypeface(null, 1);
+        agentPanel.addView(agentState);
+
+        pairingCode = new TextView(this);
+        pairingCode.setTextColor(GREEN);
+        pairingCode.setTextSize(24);
+        pairingCode.setTypeface(null, 1);
+        pairingCode.setPadding(0, dp(4), 0, dp(8));
+        agentPanel.addView(pairingCode);
+
+        LinearLayout agentActions = new LinearLayout(this);
+        agentActions.setOrientation(LinearLayout.HORIZONTAL);
+
+        pairButton = miniAction("ABRIR PAREAMENTO");
+        pairButton.setOnClickListener(v -> requestPairing());
+        agentActions.addView(pairButton, weightedButtonParams());
+
+        stopButton = miniGhost("ENCERRAR AGENTE");
+        stopButton.setOnClickListener(v -> {
+            AgentService.stop(this);
+            Toast.makeText(this, "Agente encerrado", Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams stopLp = weightedButtonParams();
+        stopLp.setMargins(dp(6), 0, 0, 0);
+        agentActions.addView(stopButton, stopLp);
+
+        agentPanel.addView(agentActions);
+
+        TextView localOnly = new TextView(this);
+        localOnly.setText("Conexão local: 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • dados enviados somente ao computador pareado via sessão local");
+        localOnly.setTextColor(MUTED);
+        localOnly.setTextSize(11);
+        localOnly.setPadding(0, dp(8), 0, 0);
+        agentPanel.addView(localOnly);
+
+        LinearLayout.LayoutParams agentLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        agentLp.setMargins(dp(14), 0, dp(14), dp(10));
+        root.addView(agentPanel, agentLp);
 
         LinearLayout nav = new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
@@ -82,6 +160,70 @@ public class MainActivity extends Activity {
         root.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(root);
+        updateAgentUi();
+    }
+
+    private void requestPairing() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            pairingPendingAfterNotificationPermission = true;
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIFICATIONS);
+            return;
+        }
+        openPairingNow();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_NOTIFICATIONS && pairingPendingAfterNotificationPermission) {
+            pairingPendingAfterNotificationPermission = false;
+            if (grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Notificações negadas. O Agent pode iniciar, mas o Android pode ocultar o aviso da sessão.", Toast.LENGTH_LONG).show();
+            }
+            openPairingNow();
+        }
+    }
+
+    private void openPairingNow() {
+        String code = AgentSessionManager.get().openPairingWindow();
+        AgentService.start(this);
+        updateAgentUi();
+        Toast.makeText(this, "Pareamento aberto por 60 segundos: " + code, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateAgentUi() {
+        if (agentState == null || pairingCode == null) return;
+        AgentSessionManager sm = AgentSessionManager.get();
+        AgentSessionManager.State state = sm.getState();
+        switch (state) {
+            case PAIRING:
+                agentState.setText("● AGUARDANDO WELLTECH • " + sm.getPairingRemainingSeconds() + " s");
+                agentState.setTextColor(WARN);
+                pairingCode.setText("Código: " + sm.getPairingCode());
+                pairButton.setText("GERAR NOVO CÓDIGO");
+                stopButton.setEnabled(true);
+                break;
+            case PAIRED:
+                agentState.setText("● COMPUTADOR PAREADO • aguardando início da sessão");
+                agentState.setTextColor(GREEN);
+                pairingCode.setText("Sessão autenticada");
+                pairButton.setText("REFAZER PAREAMENTO");
+                stopButton.setEnabled(true);
+                break;
+            case ACTIVE:
+                agentState.setText("● CONECTADO • diagnóstico em andamento");
+                agentState.setTextColor(GREEN);
+                pairingCode.setText("Protocolo " + AgentConstants.PROTOCOL + " • Agent " + AgentConstants.AGENT_VERSION);
+                pairButton.setText("NOVO PAREAMENTO");
+                stopButton.setEnabled(true);
+                break;
+            default:
+                agentState.setText("○ DESCONECTADO • agente aguardando autorização");
+                agentState.setTextColor(MUTED);
+                pairingCode.setText("Nenhuma sessão ativa");
+                pairButton.setText("ABRIR PAREAMENTO");
+                stopButton.setEnabled(false);
+        }
     }
 
     private void navigate(String label) {
@@ -104,7 +246,7 @@ public class MainActivity extends Activity {
     }
 
     private void showOverview() {
-        clear("Visão geral", "Alpha 0.1.0 • somente leitura");
+        clear("Visão geral", "Alpha 0.2.0 • leitura local + Agent Protocolo 1.0");
 
         card("DISPOSITIVO", snapshot.manufacturer + " " + snapshot.model +
                 "\nAndroid " + snapshot.androidVersion + " • API " + snapshot.sdk +
@@ -121,10 +263,16 @@ public class MainActivity extends Activity {
                 "\nDisponível: " + DeviceDiagnostics.bytes(snapshot.ramAvailable) +
                 "\nDisponível agora: " + ramPct + "%");
 
-        card("BATERIA", "Nível: " + snapshot.batteryLevel + "%" +
+        card("BATERIA", "Nível: " + displayBatteryLevel() +
                 "\nEstado: " + snapshot.batteryStatus +
                 "\nSaúde reportada: " + snapshot.batteryHealth +
-                "\nTemperatura: " + snapshot.batteryTempC + " °C");
+                "\nTemperatura: " + displayBatteryTemp());
+
+        card("AGENT LOCAL", "Servidor: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
+                "\nAPI: /api/v1" +
+                "\nPareamento: código temporário + token forte" +
+                "\nStream: WebSocket com heartbeat de 5 s" +
+                "\nNuvem: desativada por padrão");
 
         Button update = action("ATUALIZAR LEITURA");
         update.setOnClickListener(v -> showOverview());
@@ -153,14 +301,23 @@ public class MainActivity extends Activity {
 
     private void showBattery() {
         clear("Bateria", "Leituras disponibilizadas pelas APIs públicas do Android");
-        card("ESTADO ATUAL", "Nível: " + snapshot.batteryLevel + "%" +
+        card("ESTADO ATUAL", "Nível: " + displayBatteryLevel() +
                 "\nEstado: " + snapshot.batteryStatus +
                 "\nSaúde reportada: " + snapshot.batteryHealth +
-                "\nTemperatura: " + snapshot.batteryTempC + " °C" +
-                "\nTensão: " + snapshot.batteryVoltageMv + " mV");
+                "\nFonte: " + snapshot.batteryPowerSource +
+                "\nTemperatura: " + displayBatteryTemp() +
+                "\nTensão: " + (snapshot.batteryVoltageMv >= 0 ? snapshot.batteryVoltageMv + " mV" : "Não disponível"));
+
+        card("TELEMETRIA AVANÇADA",
+                "Corrente instantânea: " + numberOrUnavailable(snapshot.batteryCurrentNowMicroA, " µA") +
+                "\nCorrente média: " + numberOrUnavailable(snapshot.batteryCurrentAverageMicroA, " µA") +
+                "\nCharge counter: " + numberOrUnavailable(snapshot.batteryChargeCounterMicroAh, " µAh") +
+                "\nEnergy counter: " + numberOrUnavailable(snapshot.batteryEnergyCounterNanoWh, " nWh") +
+                "\nCiclos: " + numberOrUnavailable(snapshot.batteryCycleCount, ""));
+
         card("OBSERVAÇÃO TÉCNICA",
-                "Nem todo Android expõe capacidade de projeto, ciclos ou saúde percentual real. " +
-                "O Welltech não inventa valores que o aparelho não fornece.");
+                "Nem todo Android expõe corrente, capacidade, ciclos ou saúde percentual real. " +
+                "Quando a API não fornece um dado confiável, o Welltech marca como não disponível em vez de inventar um valor.");
     }
 
     private void showApps() {
@@ -168,7 +325,7 @@ public class MainActivity extends Activity {
 
         if (!UsageStatsHelper.hasPermission(this)) {
             card("ACESSO NECESSÁRIO",
-                    "O Android exige autorização manual para consultar tempo de uso. Esse acesso é somente leitura.");
+                    "O Android exige autorização manual para consultar tempo de uso. Esse acesso é somente leitura e aparece como capability permission_required no Agent.");
             Button permission = action("CONCEDER ACESSO DE USO");
             permission.setOnClickListener(v -> UsageStatsHelper.openPermissionSettings(this));
             content.addView(permission);
@@ -192,7 +349,7 @@ public class MainActivity extends Activity {
     }
 
     private void showReport() {
-        clear("Relatório", "Resumo técnico para compartilhar");
+        clear("Relatório", "Resumo técnico local para compartilhar manualmente");
         String report = buildReport();
         card("RELATÓRIO WELLTECH", report);
 
@@ -211,7 +368,7 @@ public class MainActivity extends Activity {
         long used = Math.max(0, snapshot.storageTotal - snapshot.storageFree);
         int storagePct = snapshot.storageTotal > 0 ? (int)Math.round(used * 100d / snapshot.storageTotal) : 0;
 
-        return "WELLTECH MOBILE - ALPHA 0.1.0\n\n" +
+        return "WELLTECH MOBILE AGENT - ALPHA 0.2.0\n\n" +
                 "Dispositivo: " + snapshot.manufacturer + " " + snapshot.model + "\n" +
                 "Android: " + snapshot.androidVersion + " (API " + snapshot.sdk + ")\n" +
                 "Patch: " + snapshot.securityPatch + "\n" +
@@ -222,13 +379,25 @@ public class MainActivity extends Activity {
                 "Armazenamento: " + DeviceDiagnostics.bytes(snapshot.storageTotal) + "\n" +
                 "Armazenamento livre: " + DeviceDiagnostics.bytes(snapshot.storageFree) + "\n" +
                 "Armazenamento usado: " + storagePct + "%\n" +
-                "Bateria: " + snapshot.batteryLevel + "%\n" +
+                "Bateria: " + displayBatteryLevel() + "\n" +
                 "Estado: " + snapshot.batteryStatus + "\n" +
                 "Saúde reportada: " + snapshot.batteryHealth + "\n" +
-                "Temperatura: " + snapshot.batteryTempC + " °C\n" +
-                "Tensão: " + snapshot.batteryVoltageMv + " mV\n" +
+                "Temperatura: " + displayBatteryTemp() + "\n" +
+                "Tensão: " + (snapshot.batteryVoltageMv >= 0 ? snapshot.batteryVoltageMv + " mV" : "Não disponível") + "\n" +
                 "Tempo ligado: " + DeviceDiagnostics.uptime(snapshot.uptimeMs) + "\n\n" +
-                "Modo: somente leitura.";
+                "Modo: diagnóstico local somente leitura. Metadados da sessão do Agent não são anexados automaticamente a este relatório.";
+    }
+
+    private String displayBatteryLevel() {
+        return snapshot.batteryLevel >= 0 ? snapshot.batteryLevel + "%" : "Não disponível";
+    }
+
+    private String displayBatteryTemp() {
+        return Float.isNaN(snapshot.batteryTempC) ? "Não disponível" : snapshot.batteryTempC + " °C";
+    }
+
+    private static String numberOrUnavailable(Number value, String unit) {
+        return value == null ? "Não disponível" : value + unit;
     }
 
     private void title(String text) {
@@ -291,6 +460,30 @@ public class MainActivity extends Activity {
         lp.setMargins(0, dp(6), 0, dp(10));
         b.setLayoutParams(lp);
         return b;
+    }
+
+    private Button miniAction(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextColor(Color.rgb(7,16,8));
+        b.setTextSize(11);
+        b.setTypeface(null, 1);
+        b.setBackgroundColor(GREEN);
+        return b;
+    }
+
+    private Button miniGhost(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextColor(TEXT);
+        b.setTextSize(11);
+        b.setTypeface(null, 1);
+        b.setBackgroundColor(PANEL2);
+        return b;
+    }
+
+    private LinearLayout.LayoutParams weightedButtonParams() {
+        return new LinearLayout.LayoutParams(0, dp(46), 1f);
     }
 
     private int dp(int value) {
