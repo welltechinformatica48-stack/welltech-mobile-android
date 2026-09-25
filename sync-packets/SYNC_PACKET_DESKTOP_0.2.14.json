@@ -1,0 +1,35 @@
+{
+  "packetVersion": 1,
+  "generatedAt": "2026-09-25",
+  "source": "welltech-desktop-mobile-center",
+  "desktopVersion": "0.2.14-alpha",
+  "baseDesktopVersion": "0.2.13",
+  "protocol": "1.0",
+  "contractVersion": "1.0.1",
+  "agentCompatibility": {
+    "minimum": "0.2.1-alpha",
+    "preferred": "0.2.2-alpha",
+    "fallback": "Agent 0.2.1 uses readyForPairing; Agent 0.2.2 exposes connectionState."
+  },
+  "changes": [
+    "Poll GET /api/v1/health every 750 ms while ADB forward is active.",
+    "Map connectionState idle/waiting_pair_code/paired/connected to Desktop UI states.",
+    "Keep PAIRING and SESSION_STARTING as local transient states.",
+    "Enable code field and Parear button only while pairing window is actually open.",
+    "Require /session/start response state=active before showing CONECTADO.",
+    "Clear stale code when pairing window closes/expires.",
+    "Keep ADB fallback active if Agent is missing or local transport fails."
+  ],
+  "security": {
+    "tokenPersistence": "memory_only",
+    "pairingCodePersistence": "not_persisted",
+    "healthUnauthenticatedData": "state metadata only; no device telemetry"
+  },
+  "desktopTestRequired": [
+    "Moto G84 USB/ADB authorized",
+    "Agent 0.2.2-alpha preferred",
+    "Pairing window open/expire/new-code scenarios",
+    "Disconnect/reconnect",
+    "Agent absent fallback"
+  ]
+}
