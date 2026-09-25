@@ -5,8 +5,9 @@ Atualizado em: 2026-09-25
 ## Estado atual
 
 - Desktop / Mobile Center: 0.2.13 (frente separada, fora deste repositório)
-- Mobile Agent Android: 0.2.1 funcional sobre a linha de desenvolvimento atual
+- Mobile Agent Android: 0.2.2-alpha em `dev/agent`
 - Protocolo de integração: 1.0
+- Versão do contrato: 1.0.1
 - Transporte validado: USB/ADB + ADB forward para 127.0.0.1:37183
 - Pareamento: código temporário de 6 dígitos
 - Token de sessão: somente em memória
@@ -17,18 +18,37 @@ Cadeia comprovada em teste real:
 
 Windows -> USB/ADB -> Mobile Agent -> pareamento -> sessão -> capabilities -> device -> battery -> encerramento
 
+A mudança 0.2.2 é aditiva: o protocolo permanece 1.0. Clientes antigos podem ignorar os novos campos do `/health`.
+
 ## Regra de separação de frentes
 
 1. O repositório `welltech-mobile-android` pertence ao Mobile Agent.
 2. Alterações de Desktop não devem ser implementadas neste repositório.
 3. Mudanças que afetem os dois lados devem primeiro ser registradas como contrato/pêndencia de sincronização.
 4. A `main` deve permanecer estável.
-5. Desenvolvimento do Agent ocorre em branch própria.
+5. Desenvolvimento do Agent ocorre em `dev/agent`.
 6. Desktop e Agent podem evoluir em ritmos diferentes desde que mantenham compatibilidade com o protocolo acordado.
 
-## Estados esperados do pareamento no Desktop
+## Estado público fornecido pelo Agent 0.2.2
 
-O Desktop deve refletir a máquina de estados abaixo, sem antecipar sucesso visual:
+`GET /api/v1/health` passa a fornecer, sem expor token ou código:
+
+- `agentVersion`
+- `connectionState`: `idle`, `waiting_pair_code`, `paired`, `connected`
+- `readyForPairing`
+- `pairingRemainingSeconds`
+- `paired`
+- `active`
+
+Mapeamento recomendado no Desktop:
+
+- `idle` -> AGENT_READY
+- `waiting_pair_code` -> WAITING_PAIR_CODE
+- `paired` -> PAIRED
+- `connected` -> CONNECTED
+- `PAIRING` e `SESSION_STARTING` continuam sendo estados transitórios locais do Desktop durante as requisições.
+
+## Estados esperados do pareamento no Desktop
 
 - AGENT_NOT_FOUND
 - AGENT_READY
@@ -44,6 +64,7 @@ O botão `PAREAR` só pode mudar para estado conectado depois de sucesso confirm
 
 ## Pendências do Desktop 0.2.13
 
+- Consumir `connectionState` do `/health`.
 - Corrigir sincronização visual do pareamento.
 - Não exibir `Pareado` antes da confirmação real da sessão.
 - Tratar código de pareamento novo como substituição do anterior.
