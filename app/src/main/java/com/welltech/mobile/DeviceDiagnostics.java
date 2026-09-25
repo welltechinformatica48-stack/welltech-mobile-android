@@ -50,20 +50,33 @@ public final class DeviceDiagnostics {
         s.cpuCores = Runtime.getRuntime().availableProcessors();
         s.cpuName = readCpuName();
 
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-        if (am != null) {
-            am.getMemoryInfo(mi);
-            s.ramTotal = mi.totalMem;
-            s.ramAvailable = mi.availMem;
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            if (am != null) {
+                am.getMemoryInfo(mi);
+                s.ramTotal = mi.totalMem;
+                s.ramAvailable = mi.availMem;
+            }
+        } catch (Throwable ignored) {
+            s.ramTotal = 0L;
+            s.ramAvailable = 0L;
         }
 
-        File data = Environment.getDataDirectory();
-        StatFs stat = new StatFs(data.getAbsolutePath());
-        s.storageTotal = stat.getTotalBytes();
-        s.storageFree = stat.getAvailableBytes();
+        try {
+            File data = Environment.getDataDirectory();
+            StatFs stat = new StatFs(data.getAbsolutePath());
+            s.storageTotal = stat.getTotalBytes();
+            s.storageFree = stat.getAvailableBytes();
+        } catch (Throwable ignored) {
+            s.storageTotal = 0L;
+            s.storageFree = 0L;
+        }
 
-        Intent battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        Intent battery = null;
+        try {
+            battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        } catch (Throwable ignored) {}
         if (battery != null) {
             int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
             int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
@@ -88,21 +101,41 @@ public final class DeviceDiagnostics {
             s.batteryPowerSource = "Desconhecida";
         }
 
-        BatteryManager bm = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
-        if (bm != null) {
-            s.batteryCurrentNowMicroA = validIntProperty(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW));
-            s.batteryCurrentAverageMicroA = validIntProperty(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE));
-            s.batteryChargeCounterMicroAh = validIntProperty(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER));
-            long energy = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
-            s.batteryEnergyCounterNanoWh = energy == Long.MIN_VALUE ? null : energy;
+        try {
+            BatteryManager bm = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+            if (bm != null) {
+                s.batteryCurrentNowMicroA = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                s.batteryCurrentAverageMicroA = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE);
+                s.batteryChargeCounterMicroAh = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
+                s.batteryEnergyCounterNanoWh = safeLongProperty(bm, BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+            }
+        } catch (Throwable ignored) {
+            s.batteryCurrentNowMicroA = null;
+            s.batteryCurrentAverageMicroA = null;
+            s.batteryChargeCounterMicroAh = null;
+            s.batteryEnergyCounterNanoWh = null;
         }
 
         s.uptimeMs = SystemClock.elapsedRealtime();
         return s;
     }
 
-    private static Integer validIntProperty(int value) {
-        return value == Integer.MIN_VALUE ? null : value;
+    private static Integer safeIntProperty(BatteryManager bm, int property) {
+        try {
+            int value = bm.getIntProperty(property);
+            return value == Integer.MIN_VALUE ? null : value;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Long safeLongProperty(BatteryManager bm, int property) {
+        try {
+            long value = bm.getLongProperty(property);
+            return value == Long.MIN_VALUE ? null : value;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static String readCpuName() {
