@@ -1,0 +1,172 @@
+{
+  "contract": "welltech-mobile-agent",
+  "contractVersion": "1.0.0",
+  "protocol": {
+    "major": 1,
+    "minor": 0,
+    "compatibility": {
+      "sameMajor": "compatible when newer minor changes are additive",
+      "majorMismatch": "reject agent stream and fall back to ADB/Desktop capabilities",
+      "unknownFields": "ignore and preserve compatibility",
+      "removedOrRenamedFields": "not allowed inside the same major",
+      "semanticChange": "requires a new field or a new protocol major"
+    }
+  },
+  "roles": {
+    "desktop": "Welltech Desktop/Mobile Center: UI, ADB, Fastboot, firmware, scrcpy, orchestration, fallback and reports",
+    "agent": "Welltech Mobile Agent APK: authorized Android APIs, structured telemetry and permission/capability reporting"
+  },
+  "transport": {
+    "phase1": {
+      "name": "adb-forward-http-websocket",
+      "deviceBindAddress": "127.0.0.1",
+      "devicePort": 37183,
+      "hostPort": "dynamic/free port chosen by Desktop per device",
+      "httpBasePath": "/api/v1",
+      "websocketPath": "/api/v1/stream",
+      "wifiTransport": "not part of protocol 1.0; if added later it requires authenticated encryption/TLS"
+    },
+    "multiDevice": {
+      "rule": "one ADB forward + one session token + one stream per physical device",
+      "identity": "sessionId/installId; never rely on IMEI as protocol identity"
+    }
+  },
+  "pairingAndSession": {
+    "health": "GET /api/v1/health may be unauthenticated but must expose only service/protocol readiness, no personal/device telemetry",
+    "pairing": {
+      "endpoint": "POST /api/v1/pair",
+      "precondition": "agent UI has an explicit technician-approved pairing window open",
+      "windowSeconds": 60,
+      "proof": "one-time pairing code or equivalent user-approved challenge",
+      "result": "128-bit-or-stronger random bearer session token"
+    },
+    "token": {
+      "header": "Authorization: Bearer <session-token>",
+      "scope": "single device + single active diagnostic session",
+      "expiry": "session stop, agent stop, disconnect policy or explicit revoke",
+      "logging": "must never be written to ordinary logs or reports"
+    }
+  },
+  "endpoints": {
+    "publicMinimal": [
+      "GET /api/v1/health",
+      "POST /api/v1/pair"
+    ],
+    "authenticated": [
+      "POST /api/v1/session/start",
+      "POST /api/v1/session/stop",
+      "GET /api/v1/capabilities",
+      "GET /api/v1/device",
+      "GET /api/v1/battery",
+      "GET /api/v1/usage/current",
+      "GET /api/v1/usage/history",
+      "GET /api/v1/media",
+      "GET /api/v1/network",
+      "GET /api/v1/network/apps",
+      "GET /api/v1/storage",
+      "GET /api/v1/apps",
+      "GET /api/v1/telephony",
+      "GET /api/v1/sensors",
+      "GET /api/v1/security/status",
+      "WS /api/v1/stream"
+    ]
+  },
+  "stream": {
+    "heartbeatSeconds": 5,
+    "staleAfterSeconds": 15,
+    "reconnect": "Desktop reconnects with the same session while token is valid, then requests a fresh snapshot",
+    "queuePolicy": "for high-rate telemetry keep latest state; never build an unbounded backlog",
+    "sequence": "monotonic seq per session; duplicate/older samples may be ignored",
+    "snapshotBeforeDeltas": true
+  },
+  "messageEnvelope": {
+    "required": [
+      "protocol",
+      "schema",
+      "sessionId",
+      "seq",
+      "capturedAtEpochMs",
+      "deviceElapsedRealtimeMs",
+      "source",
+      "payload"
+    ],
+    "protocolExample": "1.0",
+    "schemaExample": "battery.snapshot/1",
+    "sourceExamples": [
+      "agent.battery_manager",
+      "agent.usage_stats",
+      "agent.media_session",
+      "desktop.adb",
+      "desktop.combined"
+    ]
+  },
+  "time": {
+    "capturedAtEpochMs": "wall-clock timestamp for display/log correlation",
+    "deviceElapsedRealtimeMs": "monotonic device time for durations/order; preferred for media/session timing",
+    "rule": "do not calculate precise durations by subtracting PC wall clock from Android wall clock"
+  },
+  "missingData": {
+    "metricStatus": [
+      "ok",
+      "unsupported",
+      "permission_required",
+      "disabled",
+      "temporarily_unavailable",
+      "stale",
+      "error"
+    ],
+    "rule": "never use magic/sentinel numbers as valid measurements; use null + explicit status/reason"
+  },
+  "units": {
+    "percent": "0..100",
+    "bytes": "integer bytes",
+    "bytesPerSecond": "integer or decimal B/s",
+    "temperatureC": "degrees Celsius",
+    "voltageMv": "millivolts",
+    "currentMicroA": "raw signed microamps when API exposes it; preserve source/sign semantics",
+    "durationMs": "milliseconds",
+    "positionMs": "milliseconds",
+    "frequencyHz": "hertz"
+  },
+  "privacy": {
+    "defaultPersistence": "ephemeral during diagnostic session",
+    "mediaMetadata": "do not persist title/channel/content unless technician explicitly attaches it to the service record",
+    "accountInference": "forbidden; do not infer YouTube/Google active account",
+    "cloud": "no cloud upload by default",
+    "screenAndCamera": "explicit scrcpy mode on Desktop; not automatic"
+  },
+  "safety": {
+    "destructiveActions": "require explicit confirmation",
+    "frpBypass": "not supported",
+    "bootloaderUnlockAutomation": "not supported",
+    "firmwareFlash": "Desktop-controlled; APK is not a flashing engine"
+  },
+  "ownership": {
+    "desktopChat": [
+      "Desktop UI",
+      "ADB/Fastboot",
+      "firmware",
+      "scrcpy",
+      "pre-diagnostic USB/energy",
+      "AgentClient",
+      "fallback",
+      "report integration"
+    ],
+    "apkChat": [
+      "Android app",
+      "Foreground Service",
+      "local server",
+      "permissions UI",
+      "Android native APIs",
+      "capability reporting",
+      "stream producer"
+    ],
+    "shared": [
+      "protocol contract",
+      "capability IDs",
+      "schemas",
+      "compatibility rules",
+      "sync packet format"
+    ]
+  }
+}
