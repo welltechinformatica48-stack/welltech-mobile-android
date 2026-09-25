@@ -10,11 +10,17 @@ public final class AgentApiJson {
     private AgentApiJson() {}
 
     public static JSONObject health() throws JSONException {
+        AgentSessionManager sm = AgentSessionManager.get();
         JSONObject o = new JSONObject();
         o.put("service", AgentConstants.SERVICE_NAME);
         o.put("protocolMajor", AgentConstants.PROTOCOL_MAJOR);
         o.put("protocolMinor", AgentConstants.PROTOCOL_MINOR);
-        o.put("readyForPairing", AgentSessionManager.get().isPairingOpen());
+        o.put("agentVersion", AgentConstants.AGENT_VERSION);
+        o.put("connectionState", connectionState(sm.getState()));
+        o.put("readyForPairing", sm.isPairingOpen());
+        o.put("pairingRemainingSeconds", sm.getPairingRemainingSeconds());
+        o.put("paired", sm.isPaired());
+        o.put("active", sm.isActive());
         return o;
     }
 
@@ -25,6 +31,7 @@ public final class AgentApiJson {
         o.put("sessionId", pair.sessionId);
         o.put("token", pair.token);
         o.put("tokenType", "Bearer");
+        o.put("connectionState", "paired");
         return o;
     }
 
@@ -132,6 +139,13 @@ public final class AgentApiJson {
             o.put("message", message);
         } catch (JSONException ignored) {}
         return o;
+    }
+
+    private static String connectionState(AgentSessionManager.State state) {
+        if (state == AgentSessionManager.State.PAIRING) return "waiting_pair_code";
+        if (state == AgentSessionManager.State.PAIRED) return "paired";
+        if (state == AgentSessionManager.State.ACTIVE) return "connected";
+        return "idle";
     }
 
     private static JSONObject envelope(String schema, String source, JSONObject payload) throws JSONException {
