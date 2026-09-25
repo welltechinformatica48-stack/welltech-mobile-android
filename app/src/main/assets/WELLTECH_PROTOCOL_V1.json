@@ -1,6 +1,6 @@
 {
   "contract": "welltech-mobile-agent",
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.0.1",
   "protocol": {
     "major": 1,
     "minor": 0,
@@ -32,7 +32,21 @@
     }
   },
   "pairingAndSession": {
-    "health": "GET /api/v1/health may be unauthenticated but must expose only service/protocol readiness, no personal/device telemetry",
+    "health": "GET /api/v1/health may be unauthenticated but must expose only service/protocol/readiness/session-state metadata, never token, pairing code or device telemetry",
+    "healthFields": {
+      "connectionState": ["idle", "waiting_pair_code", "paired", "connected"],
+      "readyForPairing": "true only while the technician-approved pairing window is open",
+      "pairingRemainingSeconds": "remaining pairing-window duration; zero when not waiting for a code",
+      "paired": "true after a valid code is accepted and until the session is revoked",
+      "active": "true only after session/start succeeds"
+    },
+    "desktopStateMapping": {
+      "idle": "AGENT_READY",
+      "waiting_pair_code": "WAITING_PAIR_CODE",
+      "paired": "PAIRED",
+      "connected": "CONNECTED",
+      "localTransientStates": ["PAIRING", "SESSION_STARTING"]
+    },
     "pairing": {
       "endpoint": "POST /api/v1/pair",
       "precondition": "agent UI has an explicit technician-approved pairing window open",
