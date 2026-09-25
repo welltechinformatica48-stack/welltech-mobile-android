@@ -1,0 +1,39 @@
+{
+  "catalogVersion": "1.0.0",
+  "stateValues": [
+    "available",
+    "permission_required",
+    "unsupported",
+    "disabled",
+    "temporarily_unavailable",
+    "error"
+  ],
+  "capabilities": [
+    {"id":"device.basic","owner":"agent","phase":"0.1.0","fallback":"desktop.adb"},
+    {"id":"battery.basic","owner":"agent","phase":"0.1.0","fallback":"desktop.adb"},
+    {"id":"battery.advanced","owner":"agent","phase":"0.2.x","fallback":"desktop.adb_if_exposed"},
+    {"id":"usage.foreground","owner":"agent","phase":"0.2.0","fallback":"desktop.adb_focus_detection"},
+    {"id":"usage.history","owner":"agent","phase":"0.2.0","fallback":"none_or_limited_adb"},
+    {"id":"media.session","owner":"agent","phase":"0.2.1","fallback":"desktop.adb_media_session"},
+    {"id":"media.notification","owner":"agent","phase":"0.2.1","fallback":"desktop.adb_notification_if_available"},
+    {"id":"media.accessibility_fallback","owner":"agent","phase":"later_optional","fallback":"desktop.uiautomator_optional","default":"disabled"},
+    {"id":"network.total","owner":"combined","phase":"0.2.0","fallback":"desktop.adb_sysfs_proc"},
+    {"id":"network.per_uid","owner":"agent","phase":"0.2.2","fallback":"desktop.adb_netstats_historical","note":"not guaranteed sub-second real-time"},
+    {"id":"storage.per_app","owner":"agent","phase":"0.2.2","fallback":"desktop.adb_limited"},
+    {"id":"apps.inventory","owner":"combined","phase":"0.2.2","fallback":"desktop.adb"},
+    {"id":"telephony.basic","owner":"agent","phase":"0.2.x","fallback":"desktop.adb_limited"},
+    {"id":"telephony.cell","owner":"agent","phase":"later","fallback":"desktop.adb_limited","permissions":"location/phone as required by Android"},
+    {"id":"sensors.inventory","owner":"agent","phase":"0.2.x","fallback":"desktop.adb_limited"},
+    {"id":"sensors.live","owner":"agent","phase":"0.2.x","fallback":"none_or_limited_adb"},
+    {"id":"security.status","owner":"combined","phase":"0.2.x","fallback":"desktop.adb"},
+    {"id":"screen.control","owner":"desktop","phase":"existing","engine":"scrcpy"},
+    {"id":"camera.front","owner":"desktop","phase":"existing","engine":"scrcpy_when_supported"},
+    {"id":"camera.back","owner":"desktop","phase":"existing","engine":"scrcpy_when_supported"},
+    {"id":"firmware.service","owner":"desktop","phase":"existing","engine":"Odin/Fastboot/vendor tools"},
+    {"id":"usb.pre_diagnostic","owner":"desktop","phase":"existing","fallback":"Windows USB/ADB/Fastboot enumeration"}
+  ],
+  "reportFormat": {
+    "requiredPerCapability": ["id","state"],
+    "optional": ["reason","requiredPermissions","sinceAgentVersion","details"]
+  }
+}

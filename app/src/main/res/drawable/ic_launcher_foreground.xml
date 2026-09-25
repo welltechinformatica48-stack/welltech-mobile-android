@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Escudo interno escuro -->
+    <path
+        android:pathData="M54,11 L87,24 L84,69 Q81,88 54,98 Q27,88 24,69 L21,24 Z"
+        android:fillColor="#0B1411"
+        android:strokeColor="#007C3D"
+        android:strokeWidth="8"
+        android:strokeLineJoin="round"/>
+
+    <!-- Aro verde brilhante do escudo -->
+    <path
+        android:pathData="M54,11 L87,24 L84,69 Q81,88 54,98 Q27,88 24,69 L21,24 Z"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#59FF43"
+        android:strokeWidth="4"
+        android:strokeLineJoin="round"/>
+
+    <!-- Circuito superior -->
+    <path
+        android:pathData="M54,23 L54,34"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#59FF43"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M54,18 a5,5 0,1 0,0 10 a5,5 0,1 0,0 -10"
+        android:fillColor="#0B1411"
+        android:strokeColor="#7DFF5A"
+        android:strokeWidth="3"/>
+
+    <!-- W base para profundidade -->
+    <path
+        android:pathData="M31,40 L42,75 L54,52 L66,75 L77,40"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#009B4A"
+        android:strokeWidth="15"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- W neon principal -->
+    <path
+        android:pathData="M31,40 L42,75 L54,52 L66,75 L77,40"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#69FF49"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- brilho central do W -->
+    <path
+        android:pathData="M31,40 L42,75 L54,52 L66,75 L77,40"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#B5FF78"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- Circuitos inferiores -->
+    <path
+        android:pathData="M54,71 L54,86 M44,76 L36,86 M64,76 L72,86"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#43F83D"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <path
+        android:pathData="M54,84 a5,5 0,1 0,0 10 a5,5 0,1 0,0 -10"
+        android:fillColor="#0B1411"
+        android:strokeColor="#73FF4C"
+        android:strokeWidth="3"/>
+    <path
+        android:pathData="M34,83 a4,4 0,1 0,0 8 a4,4 0,1 0,0 -8"
+        android:fillColor="#0B1411"
+        android:strokeColor="#73FF4C"
+        android:strokeWidth="3"/>
+    <path
+        android:pathData="M70,83 a4,4 0,1 0,0 8 a4,4 0,1 0,0 -8"
+        android:fillColor="#0B1411"
+        android:strokeColor="#73FF4C"
+        android:strokeWidth="3"/>
+</vector>

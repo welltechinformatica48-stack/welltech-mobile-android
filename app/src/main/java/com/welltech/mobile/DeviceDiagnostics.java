@@ -22,9 +22,12 @@ public final class DeviceDiagnostics {
         public String manufacturer, brand, model, device, product, board, hardware;
         public String androidVersion, securityPatch, buildId, buildFingerprint, abis, cpuName;
         public int sdk, cpuCores, batteryLevel, batteryVoltageMv;
+        public Integer batteryCurrentNowMicroA, batteryCurrentAverageMicroA, batteryChargeCounterMicroAh;
+        public Long batteryEnergyCounterNanoWh;
+        public Integer batteryCycleCount;
         public long ramTotal, ramAvailable, storageTotal, storageFree, uptimeMs;
         public float batteryTempC;
-        public String batteryStatus, batteryHealth;
+        public String batteryStatus, batteryHealth, batteryPowerSource;
     }
 
     private DeviceDiagnostics() {}
@@ -47,30 +50,92 @@ public final class DeviceDiagnostics {
         s.cpuCores = Runtime.getRuntime().availableProcessors();
         s.cpuName = readCpuName();
 
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-        am.getMemoryInfo(mi);
-        s.ramTotal = mi.totalMem;
-        s.ramAvailable = mi.availMem;
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            if (am != null) {
+                am.getMemoryInfo(mi);
+                s.ramTotal = mi.totalMem;
+                s.ramAvailable = mi.availMem;
+            }
+        } catch (Throwable ignored) {
+            s.ramTotal = 0L;
+            s.ramAvailable = 0L;
+        }
 
-        File data = Environment.getDataDirectory();
-        StatFs stat = new StatFs(data.getAbsolutePath());
-        s.storageTotal = stat.getTotalBytes();
-        s.storageFree = stat.getAvailableBytes();
+        try {
+            File data = Environment.getDataDirectory();
+            StatFs stat = new StatFs(data.getAbsolutePath());
+            s.storageTotal = stat.getTotalBytes();
+            s.storageFree = stat.getAvailableBytes();
+        } catch (Throwable ignored) {
+            s.storageTotal = 0L;
+            s.storageFree = 0L;
+        }
 
-        Intent battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        Intent battery = null;
+        try {
+            battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        } catch (Throwable ignored) {}
         if (battery != null) {
             int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
             int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
-            s.batteryLevel = scale > 0 ? Math.round(level * 100f / scale) : level;
-            s.batteryTempC = battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
-            s.batteryVoltageMv = battery.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0);
+            s.batteryLevel = level >= 0 && scale > 0 ? Math.round(level * 100f / scale) : -1;
+            s.batteryTempC = battery.hasExtra(BatteryManager.EXTRA_TEMPERATURE)
+                    ? battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f : Float.NaN;
+            s.batteryVoltageMv = battery.hasExtra(BatteryManager.EXTRA_VOLTAGE)
+                    ? battery.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) : -1;
             s.batteryStatus = batteryStatus(battery.getIntExtra(BatteryManager.EXTRA_STATUS, -1));
             s.batteryHealth = batteryHealth(battery.getIntExtra(BatteryManager.EXTRA_HEALTH, -1));
+            s.batteryPowerSource = batteryPowerSource(battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0));
+            if (Build.VERSION.SDK_INT >= 34 && battery.hasExtra(BatteryManager.EXTRA_CYCLE_COUNT)) {
+                int cycles = battery.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1);
+                s.batteryCycleCount = cycles >= 0 ? cycles : null;
+            }
+        } else {
+            s.batteryLevel = -1;
+            s.batteryVoltageMv = -1;
+            s.batteryTempC = Float.NaN;
+            s.batteryStatus = "Desconhecido";
+            s.batteryHealth = "Desconhecida";
+            s.batteryPowerSource = "Desconhecida";
+        }
+
+        try {
+            BatteryManager bm = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+            if (bm != null) {
+                s.batteryCurrentNowMicroA = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                s.batteryCurrentAverageMicroA = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE);
+                s.batteryChargeCounterMicroAh = safeIntProperty(bm, BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
+                s.batteryEnergyCounterNanoWh = safeLongProperty(bm, BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+            }
+        } catch (Throwable ignored) {
+            s.batteryCurrentNowMicroA = null;
+            s.batteryCurrentAverageMicroA = null;
+            s.batteryChargeCounterMicroAh = null;
+            s.batteryEnergyCounterNanoWh = null;
         }
 
         s.uptimeMs = SystemClock.elapsedRealtime();
         return s;
+    }
+
+    private static Integer safeIntProperty(BatteryManager bm, int property) {
+        try {
+            int value = bm.getIntProperty(property);
+            return value == Integer.MIN_VALUE ? null : value;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Long safeLongProperty(BatteryManager bm, int property) {
+        try {
+            long value = bm.getLongProperty(property);
+            return value == Long.MIN_VALUE ? null : value;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static String readCpuName() {
@@ -107,6 +172,14 @@ public final class DeviceDiagnostics {
             case BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE: return "Falha não especificada";
             default: return "Desconhecida";
         }
+    }
+
+    private static String batteryPowerSource(int plugged) {
+        if ((plugged & BatteryManager.BATTERY_PLUGGED_AC) != 0) return "AC";
+        if ((plugged & BatteryManager.BATTERY_PLUGGED_USB) != 0) return "USB";
+        if ((plugged & BatteryManager.BATTERY_PLUGGED_WIRELESS) != 0) return "Wireless";
+        if (Build.VERSION.SDK_INT >= 33 && (plugged & BatteryManager.BATTERY_PLUGGED_DOCK) != 0) return "Dock";
+        return plugged == 0 ? "Bateria" : "Outra";
     }
 
     public static String bytes(long value) {
