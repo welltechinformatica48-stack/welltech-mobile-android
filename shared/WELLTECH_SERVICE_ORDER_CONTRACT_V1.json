@@ -1,0 +1,48 @@
+{
+  "contract": "welltech-service-order",
+  "version": "1.0.0",
+  "entities": {
+    "customer": {
+      "required": ["customerId", "displayName"],
+      "optional": ["phone", "email", "document", "notes"]
+    },
+    "serviceVisit": {
+      "required": ["visitId", "customerId", "createdAt", "status"],
+      "status": ["draft", "received", "diagnosing", "awaiting_approval", "in_progress", "ready", "delivered", "cancelled"]
+    },
+    "equipment": {
+      "required": ["equipmentId", "visitId", "category", "displayName", "status"],
+      "category": ["phone", "tablet", "computer", "notebook", "printer", "peripheral", "network", "other"],
+      "optional": ["manufacturer", "model", "serial", "reportedIssue", "accessories", "conditionNotes"]
+    },
+    "diagnostic": {
+      "required": ["diagnosticId", "equipmentId", "createdAt"],
+      "optional": ["symptoms", "tests", "findings", "dataSources", "recommendedSolution", "technicianNotes"]
+    },
+    "quote": {
+      "required": ["quoteId", "equipmentId", "currency", "items", "status"],
+      "status": ["draft", "sent", "approved", "partially_approved", "rejected", "expired"],
+      "itemFields": ["description", "quantity", "unitPrice", "type"]
+    },
+    "approval": {
+      "required": ["approvalId", "quoteId", "decision", "decidedAt"],
+      "decision": ["approved", "rejected", "partially_approved", "postponed"]
+    },
+    "attachment": {
+      "required": ["attachmentId", "equipmentId", "kind", "createdAt"],
+      "kind": ["photo", "video", "document", "report", "other"]
+    }
+  },
+  "sync": {
+    "idRule": "UUID generated offline is valid across Desktop and Mobile Console",
+    "timestamps": "ISO-8601 UTC",
+    "conflictRule": "never silently overwrite conflicting technician edits; preserve both versions for resolution",
+    "offlineFirst": true,
+    "multiEquipmentVisit": true
+  },
+  "privacy": {
+    "minimumNecessaryData": true,
+    "attachmentsLocalByDefault": true,
+    "cloudUploadRequiresConfiguredSync": true
+  }
+}
