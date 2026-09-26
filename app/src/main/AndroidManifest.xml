@@ -7,6 +7,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Preparação para Wi-Fi local seguro. A permissão será solicitada em runtime
+         somente quando o usuário ativar explicitamente o transporte Wi-Fi. -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+
     <application
         android:allowBackup="false"
         android:label="Welltech Mobile Agent"
