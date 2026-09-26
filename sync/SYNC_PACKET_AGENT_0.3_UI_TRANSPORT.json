@@ -1,0 +1,61 @@
+{
+  "packetVersion": "1.0",
+  "createdAt": "2026-09-25",
+  "source": {
+    "project": "welltech-mobile-agent",
+    "branch": "feature/agent-0.3-ui-transport",
+    "baseline": "0.2.2-alpha"
+  },
+  "target": [
+    "welltech-desktop-mobile-center",
+    "welltech-mobile-console"
+  ],
+  "protocol": {
+    "major": 1,
+    "minor": 0,
+    "breakingChange": false
+  },
+  "decisions": {
+    "roles": {
+      "desktop": "bancada completa e orquestracao",
+      "agent": "telemetria Android autorizada",
+      "mobileConsole": "atendimento tecnico em campo"
+    },
+    "transportModes": [
+      "USB_LOOPBACK",
+      "WIFI_LOCAL_SECURE",
+      "REMOTE_RELAY"
+    ],
+    "enabledNow": [
+      "USB_LOOPBACK"
+    ],
+    "blockedUntilSecure": [
+      "WIFI_LOCAL_SECURE",
+      "REMOTE_RELAY"
+    ],
+    "security": {
+      "lanCleartext": "forbidden",
+      "internetDirectPortExposure": "forbidden",
+      "remoteModel": "outbound Agent connection to authenticated Welltech Relay",
+      "explicitAuthorization": true,
+      "sessionRevocation": true,
+      "tokenPersistence": "memory-only"
+    }
+  },
+  "desktopImpact": [
+    "preserve USB/ADB fallback",
+    "show transport source per device/session",
+    "do not assume Wi-Fi support from Agent version alone; negotiate capability"
+  ],
+  "mobileConsoleImpact": [
+    "reuse shared customer/service-order/equipment model",
+    "support offline field work and later synchronization",
+    "connect to Agent only through negotiated authorized transport"
+  ],
+  "nextImplementation": [
+    "responsive Agent UI",
+    "Wi-Fi TLS/pinning design",
+    "LAN discovery opt-in",
+    "Mobile Console MVP specification and data contract"
+  ]
+}
