@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,6 +39,8 @@ public class MainActivity extends Activity {
     private Button pairButton;
     private Button stopButton;
     private TextView desktopRequestState;
+    private TextView wifiState;
+    private TextView liveSummaryText;
     private boolean desktopRequested;
     private boolean pairingPendingAfterNotificationPermission;
     private final Handler statusHandler = new Handler(Looper.getMainLooper());
@@ -45,7 +48,9 @@ public class MainActivity extends Activity {
     private final Runnable statusTick = new Runnable() {
         @Override public void run() {
             updateAgentUi();
-            statusHandler.postDelayed(this, 500L);
+            updateLiveSummary();
+            if (wifiState != null) wifiState.setText(WifiBridgeInfo.desktopHint(MainActivity.this));
+            statusHandler.postDelayed(this, 1000L);
         }
     };
 
@@ -88,7 +93,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
 
         TextView brand = new TextView(this);
-        brand.setText("WELLTECH  MOBILE AGENT");
+        brand.setText("WELLTECH MOBILE AGENT  •  " + AgentConstants.AGENT_VERSION);
         brand.setTextColor(GREEN);
         brand.setTextSize(22);
         brand.setTypeface(null, 1);
@@ -96,7 +101,7 @@ public class MainActivity extends Activity {
         root.addView(brand);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Diagnóstico local + integração autorizada com o Mobile Center");
+        subtitle.setText("Diagnóstico técnico • USB / Wi‑Fi ADB • sessão autorizada");
         subtitle.setTextColor(MUTED);
         subtitle.setTextSize(13);
         subtitle.setPadding(dp(18), 0, dp(18), dp(12));
@@ -146,11 +151,32 @@ public class MainActivity extends Activity {
         agentPanel.addView(desktopRequestState);
 
         TextView localOnly = new TextView(this);
-        localOnly.setText("Conexão local: 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • dados enviados somente ao computador pareado via sessão local");
+        localOnly.setText("Transporte: USB ou Wi‑Fi ADB seguro • túnel local 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • nenhuma porta do Agent exposta na rede");
         localOnly.setTextColor(MUTED);
         localOnly.setTextSize(11);
         localOnly.setPadding(0, dp(8), 0, 0);
         agentPanel.addView(localOnly);
+
+        wifiState = new TextView(this);
+        wifiState.setTextColor(MUTED);
+        wifiState.setTextSize(12);
+        wifiState.setPadding(0, dp(10), 0, dp(8));
+        wifiState.setText(WifiBridgeInfo.desktopHint(this));
+        agentPanel.addView(wifiState);
+
+        Button wifiButton = miniGhost("ABRIR DEPURAÇÃO SEM FIO");
+        wifiButton.setOnClickListener(v -> {
+            boolean opened = WifiBridgeInfo.openWirelessDebugging(this);
+            Toast.makeText(this,
+                    opened
+                            ? "Na tela do Android, toque em Parear dispositivo com código. O Desktop vai procurar IP/porta automaticamente."
+                            : "Não foi possível abrir a Depuração sem fio neste Android.",
+                    Toast.LENGTH_LONG).show();
+        });
+        LinearLayout.LayoutParams wifiLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+        wifiLp.setMargins(0, 0, 0, dp(4));
+        agentPanel.addView(wifiButton, wifiLp);
 
         LinearLayout.LayoutParams agentLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -158,24 +184,30 @@ public class MainActivity extends Activity {
         agentLp.setMargins(dp(14), 0, dp(14), dp(10));
         root.addView(agentPanel, agentLp);
 
+        HorizontalScrollView navScroll = new HorizontalScrollView(this);
+        navScroll.setHorizontalScrollBarEnabled(false);
+        navScroll.setFillViewport(false);
+
         LinearLayout nav = new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setPadding(dp(12), 0, dp(12), dp(10));
 
-        String[] labels = {"Resumo","Sistema","Bateria","Apps","Relatório"};
+        String[] labels = {"Resumo","Sistema","Bateria","Apps","Segurança","Relatório"};
         for (String label : labels) {
             Button b = new Button(this);
             b.setText(label);
-            b.setTextSize(11);
+            b.setAllCaps(false);
+            b.setTextSize(12);
             b.setTextColor(TEXT);
             b.setBackgroundColor(PANEL2);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(104), dp(48));
             lp.setMargins(dp(3),0,dp(3),0);
             b.setLayoutParams(lp);
             b.setOnClickListener(v -> navigate(label));
             nav.addView(b);
         }
-        root.addView(nav);
+        navScroll.addView(nav);
+        root.addView(navScroll);
 
         ScrollView scroll = new ScrollView(this);
         content = new LinearLayout(this);
@@ -320,6 +352,7 @@ public class MainActivity extends Activity {
             case "Sistema": showSystem(); break;
             case "Bateria": showBattery(); break;
             case "Apps": showApps(); break;
+            case "Segurança": showSecurity(); break;
             case "Relatório": showReport(); break;
             default: showOverview();
         }
@@ -335,7 +368,9 @@ public class MainActivity extends Activity {
     }
 
     private void showOverview() {
-        clear("Visão geral", "Alpha 0.2.1 • leitura local + Agent Protocolo 1.0");
+        clear("Visão geral", "Agent " + AgentConstants.AGENT_VERSION + " • Protocolo " + AgentConstants.PROTOCOL);
+
+        liveSummaryCard();
 
         card("DISPOSITIVO", snapshot.manufacturer + " " + snapshot.model +
                 "\nAndroid " + snapshot.androidVersion + " • API " + snapshot.sdk +
@@ -357,7 +392,10 @@ public class MainActivity extends Activity {
                 "\nSaúde reportada: " + snapshot.batteryHealth +
                 "\nTemperatura: " + displayBatteryTemp());
 
-        card("AGENT LOCAL", "Servidor: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
+        card("CONEXÃO", "Modo: USB / Wi‑Fi ADB\n" +
+                WifiBridgeInfo.desktopHint(this) + "\n" +
+                "Agent: " + AgentConstants.AGENT_VERSION + "\n" +
+                "Servidor local: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
                 "\nAPI: /api/v1" +
                 "\nPareamento: código temporário + token forte" +
                 "\nStream: WebSocket com heartbeat de 5 s" +
@@ -437,6 +475,93 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void liveSummaryCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(14), dp(16), dp(14));
+        box.setBackgroundColor(PANEL);
+
+        TextView h = new TextView(this);
+        h.setText("TEMPO REAL");
+        h.setTextColor(GREEN);
+        h.setTextSize(13);
+        h.setTypeface(null, 1);
+        box.addView(h);
+
+        liveSummaryText = new TextView(this);
+        liveSummaryText.setTextColor(TEXT);
+        liveSummaryText.setTextSize(15);
+        liveSummaryText.setLineSpacing(0, 1.15f);
+        liveSummaryText.setPadding(0, dp(8), 0, 0);
+        box.addView(liveSummaryText);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, dp(10));
+        box.setLayoutParams(lp);
+        content.addView(box);
+        updateLiveSummary();
+    }
+
+    private void updateLiveSummary() {
+        if (liveSummaryText == null) return;
+        try {
+            DeviceDiagnostics.Snapshot d = DeviceDiagnostics.collect(this);
+            RuntimeDiagnostics.Snapshot r = RuntimeDiagnostics.collect(this, d);
+            String battery = d.batteryLevel >= 0 ? d.batteryLevel + "%" : "N/D";
+            String temp = Float.isNaN(d.batteryTempC) ? "N/D" : d.batteryTempC + " °C";
+            String ram = r.ramAvailablePercent >= 0 ? r.ramAvailablePercent + "%" : "N/D";
+            String storage = r.storageFreePercent >= 0 ? r.storageFreePercent + "%" : "N/D";
+            String ip = r.wifiIpv4 == null ? "N/D" : r.wifiIpv4;
+            String thermal = r.thermalLabel == null ? "N/D" : r.thermalLabel;
+            liveSummaryText.setText(
+                    "Bateria: " + battery + " • " + temp +
+                    "\nRAM disponível: " + ram +
+                    "\nArmazenamento livre: " + storage +
+                    "\nRede: " + r.networkTransport + " • IP " + ip +
+                    "\nVPN: " + (r.vpnActive ? "ativa" : "não") +
+                    " • Proxy: " + (r.proxyConfigured ? "configurado" : "não") +
+                    "\nTérmico: " + thermal +
+                    " • Tela: " + (r.screenInteractive ? "ativa" : "apagada") +
+                    "\nTempo ligado: " + DeviceDiagnostics.uptime(d.uptimeMs) +
+                    "\nRisco atual: " + RuntimeDiagnostics.riskLevel(r, d)
+            );
+        } catch (Throwable ignored) {
+            liveSummaryText.setText("Leitura em tempo real temporariamente indisponível.");
+        }
+    }
+
+    private void showSecurity() {
+        clear("Segurança", "Sinais técnicos de risco • não substitui um motor antivírus");
+        SecurityDiagnostics.Snapshot s = SecurityDiagnostics.collect(this);
+
+        StringBuilder findings = new StringBuilder();
+        if (s.findings == null || s.findings.length == 0) {
+            findings.append("Nenhum alerta básico detectado nesta leitura.");
+        } else {
+            for (String finding : s.findings) {
+                if (findings.length() > 0) findings.append("\n");
+                findings.append("• ").append(finding);
+            }
+        }
+
+        card("ESTADO DE SEGURANÇA",
+                "Nível: " + s.riskLevel +
+                "\nPatch Android: " + s.securityPatch +
+                "\nOpções do desenvolvedor: " + (s.developerOptionsEnabled ? "ativadas" : "desativadas") +
+                "\nADB: " + (s.adbEnabled ? "ativado" : "desativado") +
+                "\nVPN: " + (s.vpnActive ? "ativa" : "não") +
+                "\nProxy: " + (s.proxyConfigured ? "configurado" : "não") +
+                "\nDNS privado: " + (s.privateDnsMode == null ? "N/D" : s.privateDnsMode));
+
+        card("ALERTAS / ACHADOS", findings.toString());
+
+        card("LIMITE DESTA VERSÃO",
+                "Esta versão analisa sinais do sistema e comportamento básico. " +
+                "Ela ainda não possui motor de assinaturas/reputação para afirmar que um aparelho está livre de malware.");
+    }
+
     private void showReport() {
         clear("Relatório", "Resumo técnico local para compartilhar manualmente");
         String report = buildReport();
@@ -457,7 +582,7 @@ public class MainActivity extends Activity {
         long used = Math.max(0, snapshot.storageTotal - snapshot.storageFree);
         int storagePct = snapshot.storageTotal > 0 ? (int)Math.round(used * 100d / snapshot.storageTotal) : 0;
 
-        return "WELLTECH MOBILE AGENT - ALPHA 0.2.1\n\n" +
+        return "WELLTECH MOBILE AGENT - " + AgentConstants.AGENT_VERSION + "\n\n" +
                 "Dispositivo: " + snapshot.manufacturer + " " + snapshot.model + "\n" +
                 "Android: " + snapshot.androidVersion + " (API " + snapshot.sdk + ")\n" +
                 "Patch: " + snapshot.securityPatch + "\n" +

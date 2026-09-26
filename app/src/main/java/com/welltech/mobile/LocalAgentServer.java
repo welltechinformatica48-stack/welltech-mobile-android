@@ -162,6 +162,14 @@ public final class LocalAgentServer {
                 return ok(AgentApiJson.batteryEnvelope(context));
             }
 
+            if ("GET".equals(req.method) && (AgentConstants.API_BASE + "/summary").equals(req.path)) {
+                return ok(AgentApiJson.summaryEnvelope(context));
+            }
+
+            if ("GET".equals(req.method) && (AgentConstants.API_BASE + "/security").equals(req.path)) {
+                return ok(AgentApiJson.securityEnvelope(context));
+            }
+
             return json(404, AgentApiJson.error("not_found", "Endpoint não encontrado nesta versão do Agent."));
         } catch (Exception e) {
             return json(500, AgentApiJson.error("internal_error", "Falha interna ao processar a requisição."));
@@ -197,18 +205,25 @@ public final class LocalAgentServer {
         sendWebSocketText(out, AgentApiJson.sessionStateEnvelope("active").toString());
         sendWebSocketText(out, AgentApiJson.deviceEnvelope(context).toString());
         sendWebSocketText(out, AgentApiJson.batteryEnvelope(context).toString());
+        sendWebSocketText(out, AgentApiJson.summaryEnvelope(context).toString());
+        sendWebSocketText(out, AgentApiJson.securityEnvelope(context).toString());
 
+        int realtimeTick = 0;
         while (running.get() && sm.isActive()) {
             long started = System.currentTimeMillis();
             try {
-                sendWebSocketText(out, AgentApiJson.heartbeatEnvelope().toString());
+                sendWebSocketText(out, AgentApiJson.summaryEnvelope(context).toString());
                 sendWebSocketText(out, AgentApiJson.batteryEnvelope(context).toString());
+                if ((realtimeTick++ % 3) == 0) {
+                    sendWebSocketText(out, AgentApiJson.heartbeatEnvelope().toString());
+                    sendWebSocketText(out, AgentApiJson.securityEnvelope(context).toString());
+                }
             } catch (IOException e) {
                 break;
             }
 
             long elapsed = System.currentTimeMillis() - started;
-            long sleep = Math.max(250L, AgentConstants.HEARTBEAT_MS - elapsed);
+            long sleep = Math.max(250L, AgentConstants.REALTIME_INTERVAL_MS - elapsed);
             try {
                 Thread.sleep(sleep);
             } catch (InterruptedException e) {

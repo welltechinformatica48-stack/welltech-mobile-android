@@ -1,0 +1,86 @@
+{
+  "contract": "welltech-fleet-monitoring",
+  "version": "1.0.1",
+  "limits": {
+    "localLiveSessionsRecommendedMax": 10,
+    "enrolledFleetTarget": null,
+    "liveTelemetryIntervalMs": 2000,
+    "fleetCheckinRecommendedSeconds": 300
+  },
+  "modes": {
+    "bench": {
+      "transport": [
+        "usb_adb",
+        "wifi_adb"
+      ],
+      "live": true,
+      "requiresExplicitPairing": true,
+      "perDeviceSession": true,
+      "perDeviceForwardPortRequiredOnDesktop": true
+    },
+    "fleet": {
+      "transport": [
+        "outbound_relay"
+      ],
+      "liveByDefault": false,
+      "checkin": false,
+      "alerts": false,
+      "liveOnDemand": false,
+      "relayStatus": "deferred_not_in_current_phase",
+      "status": "deferred_idea_only"
+    }
+  },
+  "telemetry": {
+    "summary": [
+      "battery",
+      "batteryTemperature",
+      "ram",
+      "storage",
+      "network",
+      "wifiIpv4",
+      "vpn",
+      "proxy",
+      "privateDns",
+      "screenInteractive",
+      "thermalStatus",
+      "uptime",
+      "riskLevel"
+    ],
+    "securityAssessment": {
+      "type": "signals_only",
+      "malwareEngine": "not_installed",
+      "mustNotClaimCleanDevice": true
+    }
+  },
+  "privacyAndControl": {
+    "explicitEnrollmentRequired": true,
+    "persistentUserVisibleAgentState": true,
+    "remoteSessionMustBeRevocable": true,
+    "silentRemoteControlDefault": false,
+    "minimumNecessaryTelemetry": true,
+    "tokenPersistence": "memory_only_for_live_session"
+  },
+  "desktopRequirements": {
+    "deviceIdentityKey": "adb_serial_or_enrollment_id",
+    "separateAgentTokenPerDevice": true,
+    "separateLocalForwardPortPerDevice": true,
+    "separateScrcpyProcessPerDevice": true,
+    "separateDiagnosticStatePerDevice": true
+  },
+  "currentScope": {
+    "phase": "bench_multi_device",
+    "maxConcurrentDevices": 10,
+    "transports": [
+      "usb_adb",
+      "wifi_adb"
+    ],
+    "priority": "current"
+  },
+  "futureIdeas": {
+    "fleetMonitoring40To50": {
+      "status": "deferred_idea_only",
+      "inCurrentScope": false,
+      "note": "Não desenvolver nesta fase. Revisitar após validar bancada com até 10 aparelhos."
+    }
+  }
+}

@@ -49,6 +49,8 @@ public final class AgentApiJson {
         caps.put("device.basic", capability("available", null, null));
         caps.put("battery.basic", capability("available", null, null));
         caps.put("battery.advanced", capability("available", "metric_level_support_varies_by_device", null));
+        caps.put("runtime.summary", capability("available", null, null));
+        caps.put("security.status", capability("available", "signals_only_no_antimalware_engine", null));
 
         if (UsageStatsHelper.hasPermission(context)) {
             caps.put("usage.foreground", capability("available", null, null));
@@ -69,7 +71,7 @@ public final class AgentApiJson {
         caps.put("telephony.cell", capability("disabled", "not_implemented_in_agent_0_2_0", null));
         caps.put("sensors.inventory", capability("disabled", "not_implemented_in_agent_0_2_0", null));
         caps.put("sensors.live", capability("disabled", "not_implemented_in_agent_0_2_0", null));
-        caps.put("security.status", capability("disabled", "not_implemented_in_agent_0_2_0", null));
+        caps.put("fleet.remote_checkin", capability("disabled", "relay_not_configured", null));
 
         JSONObject out = new JSONObject();
         out.put("protocol", AgentConstants.PROTOCOL);
@@ -118,6 +120,58 @@ public final class AgentApiJson {
         p.put("energyCounterNanoWh", nullableMetric(s.batteryEnergyCounterNanoWh, "device_does_not_expose_property"));
         p.put("cycleCount", nullableMetric(s.batteryCycleCount, "device_does_not_expose_cycle_count"));
         return envelope("battery.snapshot/1", "agent.battery_manager", p);
+    }
+
+    public static JSONObject summaryEnvelope(Context context) throws JSONException {
+        DeviceDiagnostics.Snapshot d = DeviceDiagnostics.collect(context);
+        RuntimeDiagnostics.Snapshot r = RuntimeDiagnostics.collect(context, d);
+
+        JSONObject p = new JSONObject();
+        p.put("manufacturer", d.manufacturer);
+        p.put("model", d.model);
+        p.put("androidVersion", d.androidVersion);
+        p.put("securityPatch", d.securityPatch);
+        p.put("batteryLevelPercent", d.batteryLevel >= 0 ? d.batteryLevel : JSONObject.NULL);
+        p.put("batteryTemperatureC", Float.isNaN(d.batteryTempC) ? JSONObject.NULL : d.batteryTempC);
+        p.put("batteryStatus", d.batteryStatus);
+        p.put("ramAvailableBytes", d.ramAvailable);
+        p.put("ramTotalBytes", d.ramTotal);
+        p.put("ramAvailablePercent", r.ramAvailablePercent >= 0 ? r.ramAvailablePercent : JSONObject.NULL);
+        p.put("storageFreeBytes", d.storageFree);
+        p.put("storageTotalBytes", d.storageTotal);
+        p.put("storageFreePercent", r.storageFreePercent >= 0 ? r.storageFreePercent : JSONObject.NULL);
+        p.put("uptimeMs", d.uptimeMs);
+        p.put("networkTransport", r.networkTransport);
+        p.put("wifiIpv4", r.wifiIpv4 == null ? JSONObject.NULL : r.wifiIpv4);
+        p.put("vpnActive", r.vpnActive);
+        p.put("proxyConfigured", r.proxyConfigured);
+        p.put("privateDnsMode", r.privateDnsMode == null ? JSONObject.NULL : r.privateDnsMode);
+        p.put("screenInteractive", r.screenInteractive);
+        p.put("thermalStatus", r.thermalStatus == null ? JSONObject.NULL : r.thermalStatus);
+        p.put("thermalLabel", r.thermalLabel == null ? JSONObject.NULL : r.thermalLabel);
+        p.put("riskLevel", RuntimeDiagnostics.riskLevel(r, d));
+        return envelope("runtime.summary/1", "agent.runtime", p);
+    }
+
+    public static JSONObject securityEnvelope(Context context) throws JSONException {
+        SecurityDiagnostics.Snapshot s = SecurityDiagnostics.collect(context);
+        JSONObject p = new JSONObject();
+        p.put("assessmentType", "signals_only");
+        p.put("malwareEngine", "not_installed");
+        p.put("securityPatch", s.securityPatch);
+        p.put("developerOptionsEnabled", s.developerOptionsEnabled);
+        p.put("adbEnabled", s.adbEnabled);
+        p.put("vpnActive", s.vpnActive);
+        p.put("proxyConfigured", s.proxyConfigured);
+        p.put("privateDnsMode", s.privateDnsMode == null ? JSONObject.NULL : s.privateDnsMode);
+        p.put("riskLevel", s.riskLevel);
+
+        org.json.JSONArray findings = new org.json.JSONArray();
+        if (s.findings != null) {
+            for (String finding : s.findings) findings.put(finding);
+        }
+        p.put("findings", findings);
+        return envelope("security.status/1", "agent.security_signals", p);
     }
 
     public static JSONObject heartbeatEnvelope() throws JSONException {
