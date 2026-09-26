@@ -1,0 +1,64 @@
+{
+  "contract": "welltech-fleet-monitoring",
+  "version": "1.0.0",
+  "limits": {
+    "localLiveSessionsRecommendedMax": 10,
+    "enrolledFleetTarget": 50,
+    "liveTelemetryIntervalMs": 2000,
+    "fleetCheckinRecommendedSeconds": 300
+  },
+  "modes": {
+    "bench": {
+      "transport": ["usb_adb", "wifi_adb"],
+      "live": true,
+      "requiresExplicitPairing": true,
+      "perDeviceSession": true,
+      "perDeviceForwardPortRequiredOnDesktop": true
+    },
+    "fleet": {
+      "transport": ["outbound_relay"],
+      "liveByDefault": false,
+      "checkin": true,
+      "alerts": true,
+      "liveOnDemand": true,
+      "relayStatus": "not_implemented"
+    }
+  },
+  "telemetry": {
+    "summary": [
+      "battery",
+      "batteryTemperature",
+      "ram",
+      "storage",
+      "network",
+      "wifiIpv4",
+      "vpn",
+      "proxy",
+      "privateDns",
+      "screenInteractive",
+      "thermalStatus",
+      "uptime",
+      "riskLevel"
+    ],
+    "securityAssessment": {
+      "type": "signals_only",
+      "malwareEngine": "not_installed",
+      "mustNotClaimCleanDevice": true
+    }
+  },
+  "privacyAndControl": {
+    "explicitEnrollmentRequired": true,
+    "persistentUserVisibleAgentState": true,
+    "remoteSessionMustBeRevocable": true,
+    "silentRemoteControlDefault": false,
+    "minimumNecessaryTelemetry": true,
+    "tokenPersistence": "memory_only_for_live_session"
+  },
+  "desktopRequirements": {
+    "deviceIdentityKey": "adb_serial_or_enrollment_id",
+    "separateAgentTokenPerDevice": true,
+    "separateLocalForwardPortPerDevice": true,
+    "separateScrcpyProcessPerDevice": true,
+    "separateDiagnosticStatePerDevice": true
+  }
+}
