@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -88,7 +89,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
 
         TextView brand = new TextView(this);
-        brand.setText("WELLTECH  MOBILE AGENT");
+        brand.setText("WELLTECH MOBILE AGENT  •  0.3.1");
         brand.setTextColor(GREEN);
         brand.setTextSize(22);
         brand.setTypeface(null, 1);
@@ -96,7 +97,7 @@ public class MainActivity extends Activity {
         root.addView(brand);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Diagnóstico local + integração autorizada com o Mobile Center");
+        subtitle.setText("Diagnóstico técnico • USB / Wi‑Fi ADB • sessão autorizada");
         subtitle.setTextColor(MUTED);
         subtitle.setTextSize(13);
         subtitle.setPadding(dp(18), 0, dp(18), dp(12));
@@ -146,7 +147,7 @@ public class MainActivity extends Activity {
         agentPanel.addView(desktopRequestState);
 
         TextView localOnly = new TextView(this);
-        localOnly.setText("Conexão local: 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • dados enviados somente ao computador pareado via sessão local");
+        localOnly.setText("Transporte: USB ou Wi‑Fi ADB seguro • túnel local 127.0.0.1:" + AgentConstants.DEVICE_PORT + " • nenhuma porta do Agent exposta na rede");
         localOnly.setTextColor(MUTED);
         localOnly.setTextSize(11);
         localOnly.setPadding(0, dp(8), 0, 0);
@@ -158,6 +159,10 @@ public class MainActivity extends Activity {
         agentLp.setMargins(dp(14), 0, dp(14), dp(10));
         root.addView(agentPanel, agentLp);
 
+        HorizontalScrollView navScroll = new HorizontalScrollView(this);
+        navScroll.setHorizontalScrollBarEnabled(false);
+        navScroll.setFillViewport(false);
+
         LinearLayout nav = new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setPadding(dp(12), 0, dp(12), dp(10));
@@ -166,16 +171,18 @@ public class MainActivity extends Activity {
         for (String label : labels) {
             Button b = new Button(this);
             b.setText(label);
-            b.setTextSize(11);
+            b.setAllCaps(false);
+            b.setTextSize(12);
             b.setTextColor(TEXT);
             b.setBackgroundColor(PANEL2);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(104), dp(48));
             lp.setMargins(dp(3),0,dp(3),0);
             b.setLayoutParams(lp);
             b.setOnClickListener(v -> navigate(label));
             nav.addView(b);
         }
-        root.addView(nav);
+        navScroll.addView(nav);
+        root.addView(navScroll);
 
         ScrollView scroll = new ScrollView(this);
         content = new LinearLayout(this);
@@ -335,7 +342,7 @@ public class MainActivity extends Activity {
     }
 
     private void showOverview() {
-        clear("Visão geral", "Alpha 0.2.1 • leitura local + Agent Protocolo 1.0");
+        clear("Visão geral", "Agent " + AgentConstants.AGENT_VERSION + " • Protocolo " + AgentConstants.PROTOCOL);
 
         card("DISPOSITIVO", snapshot.manufacturer + " " + snapshot.model +
                 "\nAndroid " + snapshot.androidVersion + " • API " + snapshot.sdk +
@@ -357,7 +364,9 @@ public class MainActivity extends Activity {
                 "\nSaúde reportada: " + snapshot.batteryHealth +
                 "\nTemperatura: " + displayBatteryTemp());
 
-        card("AGENT LOCAL", "Servidor: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
+        card("CONEXÃO", "Modo: USB / Wi‑Fi ADB\n" +
+                "Agent: " + AgentConstants.AGENT_VERSION + "\n" +
+                "Servidor local: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
                 "\nAPI: /api/v1" +
                 "\nPareamento: código temporário + token forte" +
                 "\nStream: WebSocket com heartbeat de 5 s" +
@@ -457,7 +466,7 @@ public class MainActivity extends Activity {
         long used = Math.max(0, snapshot.storageTotal - snapshot.storageFree);
         int storagePct = snapshot.storageTotal > 0 ? (int)Math.round(used * 100d / snapshot.storageTotal) : 0;
 
-        return "WELLTECH MOBILE AGENT - ALPHA 0.2.1\n\n" +
+        return "WELLTECH MOBILE AGENT - " + AgentConstants.AGENT_VERSION + "\n\n" +
                 "Dispositivo: " + snapshot.manufacturer + " " + snapshot.model + "\n" +
                 "Android: " + snapshot.androidVersion + " (API " + snapshot.sdk + ")\n" +
                 "Patch: " + snapshot.securityPatch + "\n" +
