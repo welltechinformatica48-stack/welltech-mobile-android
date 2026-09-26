@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
     private Button stopButton;
     private TextView desktopRequestState;
     private TextView wifiState;
+    private TextView liveSummaryText;
     private boolean desktopRequested;
     private boolean pairingPendingAfterNotificationPermission;
     private final Handler statusHandler = new Handler(Looper.getMainLooper());
@@ -47,6 +48,7 @@ public class MainActivity extends Activity {
     private final Runnable statusTick = new Runnable() {
         @Override public void run() {
             updateAgentUi();
+            updateLiveSummary();
             if (wifiState != null) wifiState.setText(WifiBridgeInfo.desktopHint(MainActivity.this));
             statusHandler.postDelayed(this, 1000L);
         }
@@ -91,7 +93,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
 
         TextView brand = new TextView(this);
-        brand.setText("WELLTECH MOBILE AGENT  •  0.3.1");
+        brand.setText("WELLTECH MOBILE AGENT  •  " + AgentConstants.AGENT_VERSION);
         brand.setTextColor(GREEN);
         brand.setTextSize(22);
         brand.setTypeface(null, 1);
@@ -190,7 +192,7 @@ public class MainActivity extends Activity {
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setPadding(dp(12), 0, dp(12), dp(10));
 
-        String[] labels = {"Resumo","Sistema","Bateria","Apps","Relatório"};
+        String[] labels = {"Resumo","Sistema","Bateria","Apps","Segurança","Relatório"};
         for (String label : labels) {
             Button b = new Button(this);
             b.setText(label);
@@ -350,6 +352,7 @@ public class MainActivity extends Activity {
             case "Sistema": showSystem(); break;
             case "Bateria": showBattery(); break;
             case "Apps": showApps(); break;
+            case "Segurança": showSecurity(); break;
             case "Relatório": showReport(); break;
             default: showOverview();
         }
@@ -366,6 +369,8 @@ public class MainActivity extends Activity {
 
     private void showOverview() {
         clear("Visão geral", "Agent " + AgentConstants.AGENT_VERSION + " • Protocolo " + AgentConstants.PROTOCOL);
+
+        liveSummaryCard();
 
         card("DISPOSITIVO", snapshot.manufacturer + " " + snapshot.model +
                 "\nAndroid " + snapshot.androidVersion + " • API " + snapshot.sdk +
@@ -468,6 +473,93 @@ public class MainActivity extends Activity {
                     "\nÚltimo uso: " + UsageStatsHelper.date(a.lastUsed));
             i++;
         }
+    }
+
+    private void liveSummaryCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(14), dp(16), dp(14));
+        box.setBackgroundColor(PANEL);
+
+        TextView h = new TextView(this);
+        h.setText("TEMPO REAL");
+        h.setTextColor(GREEN);
+        h.setTextSize(13);
+        h.setTypeface(null, 1);
+        box.addView(h);
+
+        liveSummaryText = new TextView(this);
+        liveSummaryText.setTextColor(TEXT);
+        liveSummaryText.setTextSize(15);
+        liveSummaryText.setLineSpacing(0, 1.15f);
+        liveSummaryText.setPadding(0, dp(8), 0, 0);
+        box.addView(liveSummaryText);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, dp(10));
+        box.setLayoutParams(lp);
+        content.addView(box);
+        updateLiveSummary();
+    }
+
+    private void updateLiveSummary() {
+        if (liveSummaryText == null) return;
+        try {
+            DeviceDiagnostics.Snapshot d = DeviceDiagnostics.collect(this);
+            RuntimeDiagnostics.Snapshot r = RuntimeDiagnostics.collect(this, d);
+            String battery = d.batteryLevel >= 0 ? d.batteryLevel + "%" : "N/D";
+            String temp = Float.isNaN(d.batteryTempC) ? "N/D" : d.batteryTempC + " °C";
+            String ram = r.ramAvailablePercent >= 0 ? r.ramAvailablePercent + "%" : "N/D";
+            String storage = r.storageFreePercent >= 0 ? r.storageFreePercent + "%" : "N/D";
+            String ip = r.wifiIpv4 == null ? "N/D" : r.wifiIpv4;
+            String thermal = r.thermalLabel == null ? "N/D" : r.thermalLabel;
+            liveSummaryText.setText(
+                    "Bateria: " + battery + " • " + temp +
+                    "\nRAM disponível: " + ram +
+                    "\nArmazenamento livre: " + storage +
+                    "\nRede: " + r.networkTransport + " • IP " + ip +
+                    "\nVPN: " + (r.vpnActive ? "ativa" : "não") +
+                    " • Proxy: " + (r.proxyConfigured ? "configurado" : "não") +
+                    "\nTérmico: " + thermal +
+                    " • Tela: " + (r.screenInteractive ? "ativa" : "apagada") +
+                    "\nTempo ligado: " + DeviceDiagnostics.uptime(d.uptimeMs) +
+                    "\nRisco atual: " + RuntimeDiagnostics.riskLevel(r, d)
+            );
+        } catch (Throwable ignored) {
+            liveSummaryText.setText("Leitura em tempo real temporariamente indisponível.");
+        }
+    }
+
+    private void showSecurity() {
+        clear("Segurança", "Sinais técnicos de risco • não substitui um motor antivírus");
+        SecurityDiagnostics.Snapshot s = SecurityDiagnostics.collect(this);
+
+        StringBuilder findings = new StringBuilder();
+        if (s.findings == null || s.findings.length == 0) {
+            findings.append("Nenhum alerta básico detectado nesta leitura.");
+        } else {
+            for (String finding : s.findings) {
+                if (findings.length() > 0) findings.append("\n");
+                findings.append("• ").append(finding);
+            }
+        }
+
+        card("ESTADO DE SEGURANÇA",
+                "Nível: " + s.riskLevel +
+                "\nPatch Android: " + s.securityPatch +
+                "\nOpções do desenvolvedor: " + (s.developerOptionsEnabled ? "ativadas" : "desativadas") +
+                "\nADB: " + (s.adbEnabled ? "ativado" : "desativado") +
+                "\nVPN: " + (s.vpnActive ? "ativa" : "não") +
+                "\nProxy: " + (s.proxyConfigured ? "configurado" : "não") +
+                "\nDNS privado: " + (s.privateDnsMode == null ? "N/D" : s.privateDnsMode));
+
+        card("ALERTAS / ACHADOS", findings.toString());
+
+        card("LIMITE DESTA VERSÃO",
+                "Esta versão analisa sinais do sistema e comportamento básico. " +
+                "Ela ainda não possui motor de assinaturas/reputação para afirmar que um aparelho está livre de malware.");
     }
 
     private void showReport() {
