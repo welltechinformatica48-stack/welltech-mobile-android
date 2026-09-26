@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private Button pairButton;
     private Button stopButton;
     private TextView desktopRequestState;
+    private TextView wifiState;
     private boolean desktopRequested;
     private boolean pairingPendingAfterNotificationPermission;
     private final Handler statusHandler = new Handler(Looper.getMainLooper());
@@ -46,7 +47,8 @@ public class MainActivity extends Activity {
     private final Runnable statusTick = new Runnable() {
         @Override public void run() {
             updateAgentUi();
-            statusHandler.postDelayed(this, 500L);
+            if (wifiState != null) wifiState.setText(WifiBridgeInfo.desktopHint(MainActivity.this));
+            statusHandler.postDelayed(this, 1000L);
         }
     };
 
@@ -152,6 +154,27 @@ public class MainActivity extends Activity {
         localOnly.setTextSize(11);
         localOnly.setPadding(0, dp(8), 0, 0);
         agentPanel.addView(localOnly);
+
+        wifiState = new TextView(this);
+        wifiState.setTextColor(MUTED);
+        wifiState.setTextSize(12);
+        wifiState.setPadding(0, dp(10), 0, dp(8));
+        wifiState.setText(WifiBridgeInfo.desktopHint(this));
+        agentPanel.addView(wifiState);
+
+        Button wifiButton = miniGhost("ABRIR DEPURAÇÃO SEM FIO");
+        wifiButton.setOnClickListener(v -> {
+            boolean opened = WifiBridgeInfo.openWirelessDebugging(this);
+            Toast.makeText(this,
+                    opened
+                            ? "Na tela do Android, toque em Parear dispositivo com código. O Desktop vai procurar IP/porta automaticamente."
+                            : "Não foi possível abrir a Depuração sem fio neste Android.",
+                    Toast.LENGTH_LONG).show();
+        });
+        LinearLayout.LayoutParams wifiLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+        wifiLp.setMargins(0, 0, 0, dp(4));
+        agentPanel.addView(wifiButton, wifiLp);
 
         LinearLayout.LayoutParams agentLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -365,6 +388,7 @@ public class MainActivity extends Activity {
                 "\nTemperatura: " + displayBatteryTemp());
 
         card("CONEXÃO", "Modo: USB / Wi‑Fi ADB\n" +
+                WifiBridgeInfo.desktopHint(this) + "\n" +
                 "Agent: " + AgentConstants.AGENT_VERSION + "\n" +
                 "Servidor local: 127.0.0.1:" + AgentConstants.DEVICE_PORT +
                 "\nAPI: /api/v1" +
